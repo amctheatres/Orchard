@@ -1,5 +1,9 @@
 ﻿@model Orchard.Widgets.Models.WidgetPart
 <fieldset>
+    @Html.Label("ContentType")
+    @Model.ContentItem.ContentType
+</fieldset>
+<fieldset>
     @Html.LabelFor(widget => widget.Zone, T("Zone"))
     @Html.DropDownListFor(widget => widget.Zone, new SelectList(Model.AvailableZones))
     <span class="hint">@T("The Zone in the Layout where the Widget will be rendered.")</span>
