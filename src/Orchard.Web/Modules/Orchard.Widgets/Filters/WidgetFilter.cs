@@ -35,7 +35,8 @@ namespace Orchard.Widgets.Filters {
         public ILogger Logger { get; set; }
         public Localizer T { get; private set; }
 
-        public void OnResultExecuting(ResultExecutingContext filterContext) {
+        //MOD: aba - added virtual to allow overriding
+        public virtual void OnResultExecuting(ResultExecutingContext filterContext) {
             // layers and widgets should only run on a full view rendering result
             var viewResult = filterContext.Result as ViewResult;
             if (viewResult == null)
