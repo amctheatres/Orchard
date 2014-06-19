@@ -58,8 +58,10 @@ namespace Orchard.MediaProcessing.Services {
 
         public string GetImageProfileUrl(string path, string profileName, FilterRecord customFilter, ContentItem contentItem) {
 
+            // path is the publicUrl of the media, so it might contain url-encoded chars
+
             // try to load the processed filename from cache
-            var filePath = _fileNameProvider.GetFileName(profileName, path);
+            var filePath = _fileNameProvider.GetFileName(profileName, System.Web.HttpUtility.UrlDecode(path));
             bool process = false;
 
             // if the filename is not cached, process it
@@ -109,7 +111,7 @@ namespace Orchard.MediaProcessing.Services {
 
                 using (var image = GetImage(path)) {
 
-                    var filterContext = new FilterContext { Media = image, FilePath = _storageProvider.Combine("_Profiles", FormatProfilePath(profileName, path)) };
+                    var filterContext = new FilterContext { Media = image, FilePath = _storageProvider.Combine("_Profiles", FormatProfilePath(profileName, System.Web.HttpUtility.UrlDecode(path))) };
 
                     if (image == null) {
                         return filterContext.FilePath;
