@@ -29,8 +29,9 @@ namespace Orchard.DisplayManagement.Descriptors.ResourceBindingStrategy {
         public abstract string GetShapePrefix();
 
         private static string SafeName(string name) {
-            if (string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(name)) {
                 return String.Empty;
+            }
 
             return name.Strip(unsafeCharList).ToLowerInvariant();
         }
@@ -84,28 +85,28 @@ namespace Orchard.DisplayManagement.Descriptors.ResourceBindingStrategy {
                         .BoundAs(
                             hit.fileVirtualPath,
                             shapeDescriptor => displayContext => {
-                                                   var shape = ((dynamic) displayContext.Value);
-                                                   var output = displayContext.ViewContext.Writer;
-                                                   ResourceDefinition resource = shape.Resource;
-                                                   string condition = shape.Condition;
-                                                   Dictionary<string, string> attributes = shape.TagAttributes;
-                                                   ResourceManager.WriteResource(output, resource, hit.fileVirtualPath, condition, attributes);
-                                                   return null;
-                                               });
+                                var shape = ((dynamic) displayContext.Value);
+                                var output = displayContext.ViewContext.Writer;
+                                ResourceDefinition resource = shape.Resource;
+                                string condition = shape.Condition;
+                                Dictionary<string, string> attributes = shape.TagAttributes;
+                                string fallbackPath = shape.FallbackPath;
+                                ResourceManager.WriteResource(output, resource, hit.fileVirtualPath, condition, attributes, fallbackPath);
+                                return null;
+                            });
                 }
             }
         }
 
         private bool FeatureIsEnabled(FeatureDescriptor fd) {
             return (DefaultExtensionTypes.IsTheme(fd.Extension.ExtensionType) && (fd.Id == "TheAdmin" || fd.Id == "SafeMode")) ||
-                _shellDescriptor.Features.Any(sf => sf.Name == fd.Id);
+                   _shellDescriptor.Features.Any(sf => sf.Name == fd.Id);
         }
     }
 
     // discovers .css files and turns them into Style__<filename> shapes.
     public class StylesheetBindingStrategy : StaticFileBindingStrategy, IShapeTableProvider {
-        public StylesheetBindingStrategy(IExtensionManager extensionManager, ShellDescriptor shellDescriptor, IVirtualPathProvider virtualPathProvider) : base(extensionManager, shellDescriptor, virtualPathProvider) {
-        }
+        public StylesheetBindingStrategy(IExtensionManager extensionManager, ShellDescriptor shellDescriptor, IVirtualPathProvider virtualPathProvider) : base(extensionManager, shellDescriptor, virtualPathProvider) {}
 
         public override string GetFileExtension() {
             return ".css";
