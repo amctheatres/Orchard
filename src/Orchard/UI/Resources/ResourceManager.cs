@@ -14,9 +14,11 @@ namespace Orchard.UI.Resources {
     public class ResourceManager : IResourceManager, IUnitOfWorkDependency {
         private readonly Dictionary<Tuple<String, String>, RequireSettings> _required = new Dictionary<Tuple<String, String>, RequireSettings>();
         private readonly List<LinkEntry> _links = new List<LinkEntry>();
+
         private readonly Dictionary<string, MetaEntry> _metas = new Dictionary<string, MetaEntry> {
-            { "generator", new MetaEntry { Content = "Orchard", Name = "generator" } }
+            {"generator", new MetaEntry {Content = "Orchard", Name = "generator"}}
         };
+
         private readonly Dictionary<string, IList<ResourceRequiredContext>> _builtResources = new Dictionary<string, IList<ResourceRequiredContext>>(StringComparer.OrdinalIgnoreCase);
         private readonly IEnumerable<Meta<IResourceManifestProvider>> _providers;
         private ResourceManifest _dynamicManifest;
@@ -58,7 +60,7 @@ namespace Orchard.UI.Resources {
             return tagBuilder;
         }
 
-        public static void WriteResource(TextWriter writer, ResourceDefinition resource, string url, string condition, Dictionary<string, string> attributes) {
+        public static void WriteResource(TextWriter writer, ResourceDefinition resource, string url, string condition, Dictionary<string, string> attributes, string fallbackUrl) {
             if (!string.IsNullOrEmpty(condition)) {
                 if (condition == NotIE) {
                     writer.WriteLine("<!--[if " + condition + "]>-->");
@@ -69,14 +71,20 @@ namespace Orchard.UI.Resources {
             }
 
             var tagBuilder = GetTagBuilder(resource, url);
-            
+
             if (attributes != null) {
                 // todo: try null value
                 tagBuilder.MergeAttributes(attributes, true);
             }
 
             writer.WriteLine(tagBuilder.ToString(resource.TagRenderMode));
-            
+
+            if (!string.IsNullOrEmpty(resource.CdnFallbackExpression)) {
+                writer.WriteLine(
+                    "<script type=\"text/javascript\">//<![CDATA[\r\n({0}) || document.write('<script type=\"text/javascript\" src=\"{1}\"><\\/script>');//]]></script>",
+                    resource.CdnFallbackExpression, fallbackUrl);
+            }
+
             if (!string.IsNullOrEmpty(condition)) {
                 if (condition == NotIE) {
                     writer.WriteLine("<!--<![endif]-->");
@@ -97,7 +105,7 @@ namespace Orchard.UI.Resources {
                     var builder = new ResourceManifestBuilder();
                     foreach (var provider in _providers) {
                         builder.Feature = provider.Metadata.ContainsKey("Feature") ?
-                            (Feature)provider.Metadata["Feature"] :
+                            (Feature) provider.Metadata["Feature"] :
                             null;
                         provider.Value.BuildManifests(builder);
                     }
@@ -108,9 +116,7 @@ namespace Orchard.UI.Resources {
         }
 
         public virtual ResourceManifest DynamicResources {
-            get {
-                return _dynamicManifest ?? (_dynamicManifest = new ResourceManifest());
-            }
+            get { return _dynamicManifest ?? (_dynamicManifest = new ResourceManifest()); }
         }
 
         public virtual RequireSettings Require(string resourceType, string resourceName) {
@@ -123,7 +129,7 @@ namespace Orchard.UI.Resources {
             RequireSettings settings;
             var key = new Tuple<string, string>(resourceType, resourceName);
             if (!_required.TryGetValue(key, out settings)) {
-                settings = new RequireSettings { Type = resourceType, Name = resourceName };
+                settings = new RequireSettings {Type = resourceType, Name = resourceName};
                 _required[key] = settings;
             }
             _builtResources[resourceType] = null;
@@ -194,15 +200,15 @@ namespace Orchard.UI.Resources {
             var name = settings.Name ?? "";
             var type = settings.Type;
             var resource = (from p in ResourceProviders
-                            from r in p.GetResources(type)
-                            where name.Equals(r.Key, StringComparison.OrdinalIgnoreCase)
-                            orderby r.Value.Version descending
-                            select r.Value).FirstOrDefault();
+                from r in p.GetResources(type)
+                where name.Equals(r.Key, StringComparison.OrdinalIgnoreCase)
+                orderby r.Value.Version descending
+                select r.Value).FirstOrDefault();
             if (resource == null && _dynamicManifest != null) {
                 resource = (from r in _dynamicManifest.GetResources(type)
-                            where name.Equals(r.Key, StringComparison.OrdinalIgnoreCase)
-                            orderby r.Value.Version descending
-                            select r.Value).FirstOrDefault();
+                    where name.Equals(r.Key, StringComparison.OrdinalIgnoreCase)
+                    orderby r.Value.Version descending
+                    select r.Value).FirstOrDefault();
             }
             if (resolveInlineDefinitions && resource == null) {
                 // Does not seem to exist, but it's possible it is being
@@ -265,7 +271,7 @@ namespace Orchard.UI.Resources {
                 ExpandDependencies(resource, settings, allResources);
             }
             requiredResources = (from DictionaryEntry entry in allResources
-                                 select new ResourceRequiredContext { Resource = (ResourceDefinition)entry.Key, Settings = (RequireSettings)entry.Value }).ToList();
+                select new ResourceRequiredContext {Resource = (ResourceDefinition) entry.Key, Settings = (RequireSettings) entry.Value}).ToList();
             _builtResources[resourceType] = requiredResources;
             return requiredResources;
         }
@@ -280,11 +286,11 @@ namespace Orchard.UI.Resources {
             // (1) If a require exists for the resource, combine with it. Last settings in gets preference for its specified values.
             // (2) If no require already exists, form a new settings object based on the given one but with its own type/name.
             settings = allResources.Contains(resource)
-                ? ((RequireSettings)allResources[resource]).Combine(settings)
-                : new RequireSettings { Type = resource.Type, Name = resource.Name }.Combine(settings);
+                ? ((RequireSettings) allResources[resource]).Combine(settings)
+                : new RequireSettings {Type = resource.Type, Name = resource.Name}.Combine(settings);
             if (resource.Dependencies != null) {
                 var dependencies = from d in resource.Dependencies
-                                   select FindResource(new RequireSettings { Type = resource.Type, Name = d });
+                    select FindResource(new RequireSettings {Type = resource.Type, Name = d});
                 foreach (var dependency in dependencies) {
                     if (dependency == null) {
                         continue;
@@ -315,7 +321,7 @@ namespace Orchard.UI.Resources {
             }
 
             var index = meta.Name ?? meta.HttpEquiv;
-            
+
             if (String.IsNullOrEmpty(index)) {
                 return;
             }
@@ -326,6 +332,5 @@ namespace Orchard.UI.Resources {
             }
             _metas[index] = meta;
         }
-
     }
 }

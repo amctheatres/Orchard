@@ -8,21 +8,25 @@ using System.Web.Mvc;
 namespace Orchard.UI.Resources {
     public class ResourceDefinition {
         private static readonly Dictionary<string, string> _resourceTypeTagNames = new Dictionary<string, string> {
-            { "script", "script" },
-            { "stylesheet", "link" }
+            {"script", "script"},
+            {"stylesheet", "link"}
         };
+
         private static readonly Dictionary<string, string> _filePathAttributes = new Dictionary<string, string> {
-            { "script", "src" },
-            { "link", "href" }
+            {"script", "src"},
+            {"link", "href"}
         };
-        private static readonly Dictionary<string, Dictionary<string,string>> _resourceAttributes = new Dictionary<string, Dictionary<string,string>> {
-            { "script", new Dictionary<string, string> { {"type", "text/javascript"} } },
-            { "stylesheet", new Dictionary<string, string> { {"type", "text/css"}, {"rel", "stylesheet"} } }
+
+        private static readonly Dictionary<string, Dictionary<string, string>> _resourceAttributes = new Dictionary<string, Dictionary<string, string>> {
+            {"script", new Dictionary<string, string> {{"type", "text/javascript"}}},
+            {"stylesheet", new Dictionary<string, string> {{"type", "text/css"}, {"rel", "stylesheet"}}}
         };
+
         private static readonly Dictionary<string, TagRenderMode> _fileTagRenderModes = new Dictionary<string, TagRenderMode> {
-            { "script", TagRenderMode.Normal },
-            { "link", TagRenderMode.SelfClosing }
+            {"script", TagRenderMode.Normal},
+            {"link", TagRenderMode.SelfClosing}
         };
+
         private static readonly Dictionary<string, string> _resourceTypeDirectories = new Dictionary<string, string> {
             {"script", "scripts/"},
             {"stylesheet", "styles/"}
@@ -39,7 +43,7 @@ namespace Orchard.UI.Resources {
             TagRenderMode = _fileTagRenderModes.ContainsKey(TagBuilder.TagName) ? _fileTagRenderModes[TagBuilder.TagName] : TagRenderMode.Normal;
             Dictionary<string, string> attributes;
             if (_resourceAttributes.TryGetValue(type, out attributes)) {
-                foreach(var pair in attributes) {
+                foreach (var pair in attributes) {
                     TagBuilder.Attributes[pair.Key] = pair.Value;
                 }
             }
@@ -72,15 +76,18 @@ namespace Orchard.UI.Resources {
             }
             return null;
         }
-        
+
         public IResourceManifest Manifest { get; private set; }
+
         public string TagName {
             get { return TagBuilder.TagName; }
         }
+
         public TagRenderMode TagRenderMode { get; private set; }
         public string Name { get; private set; }
         public string Type { get; private set; }
         public string Version { get; private set; }
+
         public string BasePath {
             get {
                 if (!String.IsNullOrEmpty(_basePath)) {
@@ -93,12 +100,14 @@ namespace Orchard.UI.Resources {
                 return basePath ?? "";
             }
         }
+
         public string Url { get; private set; }
         public string UrlDebug { get; private set; }
         public string UrlCdn { get; private set; }
         public string UrlCdnDebug { get; private set; }
         public string[] Cultures { get; private set; }
         public bool CdnSupportsSsl { get; private set; }
+        public string CdnFallbackExpression { get; private set; }
         public IEnumerable<string> Dependencies { get; private set; }
         public string FilePathAttributeName { get; private set; }
         public TagBuilder TagBuilder { get; private set; }
@@ -155,6 +164,15 @@ namespace Orchard.UI.Resources {
             return this;
         }
 
+        public ResourceDefinition SetCdnFallbackExpression(string fallbackExpression) {
+            if (String.IsNullOrEmpty(fallbackExpression)) {
+                throw new ArgumentNullException("fallbackExpression");
+            }
+
+            CdnFallbackExpression = fallbackExpression;
+            return this;
+        }
+
         public ResourceDefinition SetVersion(string version) {
             Version = version;
             return this;
@@ -168,6 +186,23 @@ namespace Orchard.UI.Resources {
         public ResourceDefinition SetDependencies(params string[] dependencies) {
             Dependencies = dependencies;
             return this;
+        }
+
+        public string ResolveFallbackUrl(RequireSettings settings, string applicationPath) {
+            if (string.IsNullOrEmpty(CdnFallbackExpression)) {
+                return null;
+            }
+
+            string url;
+
+            if (settings.DebugMode) {
+                url = Coalesce(UrlDebug, Url, UrlCdnDebug, UrlCdn);
+            }
+            else {
+                url = Coalesce(Url, UrlDebug, UrlCdn, UrlCdnDebug);
+            }
+
+            return ApplyPath(url, settings, applicationPath);
         }
 
         public string ResolveUrl(RequireSettings settings, string applicationPath) {
@@ -186,22 +221,9 @@ namespace Orchard.UI.Resources {
                     ? Coalesce(UrlCdn, Url, UrlCdnDebug, UrlDebug)
                     : Coalesce(Url, UrlDebug, UrlCdn, UrlCdnDebug);
             }
-            if (String.IsNullOrEmpty(url)) {
-                return null;
-            }
-            if (!String.IsNullOrEmpty(settings.Culture)) {
-                string nearestCulture = FindNearestCulture(settings.Culture);
-                if (!String.IsNullOrEmpty(nearestCulture)) {
-                    url = Path.ChangeExtension(url, nearestCulture + Path.GetExtension(url));
-                }
-            }
-            if (!Uri.IsWellFormedUriString(url, UriKind.Absolute) && !VirtualPathUtility.IsAbsolute(url) && !VirtualPathUtility.IsAppRelative(url) && !String.IsNullOrEmpty(BasePath)) {
-                // relative urls are relative to the base path of the module that defined the manifest
-                url = VirtualPathUtility.Combine(BasePath, url);
-            }
-            if (VirtualPathUtility.IsAppRelative(url)) {
-                url = VirtualPathUtility.ToAbsolute(url, applicationPath);
-            }
+
+            url = ApplyPath(url, settings, applicationPath);
+
             _urlResolveCache[settings] = url;
             return url;
         }
@@ -231,15 +253,35 @@ namespace Orchard.UI.Resources {
                 return false;
             }
 
-            var that = (ResourceDefinition)obj;
+            var that = (ResourceDefinition) obj;
             return string.Equals(that.Name, Name, StringComparison.Ordinal) &&
-                string.Equals(that.Type, Type, StringComparison.Ordinal) &&
-                string.Equals(that.Version, Version, StringComparison.Ordinal);
+                   string.Equals(that.Type, Type, StringComparison.Ordinal) &&
+                   string.Equals(that.Version, Version, StringComparison.Ordinal);
         }
 
         public override int GetHashCode() {
             return (Name ?? "").GetHashCode() ^ (Type ?? "").GetHashCode();
         }
 
+        private string ApplyPath(string url, RequireSettings settings, string applicationPath) {
+            if (String.IsNullOrEmpty(url)) {
+                return null;
+            }
+            if (!String.IsNullOrEmpty(settings.Culture)) {
+                string nearestCulture = FindNearestCulture(settings.Culture);
+                if (!String.IsNullOrEmpty(nearestCulture)) {
+                    url = Path.ChangeExtension(url, nearestCulture + Path.GetExtension(url));
+                }
+            }
+            if (!Uri.IsWellFormedUriString(url, UriKind.Absolute) && !VirtualPathUtility.IsAbsolute(url) && !VirtualPathUtility.IsAppRelative(url) && !String.IsNullOrEmpty(BasePath)) {
+                // relative urls are relative to the base path of the module that defined the manifest
+                url = VirtualPathUtility.Combine(BasePath, url);
+            }
+            if (VirtualPathUtility.IsAppRelative(url)) {
+                url = VirtualPathUtility.ToAbsolute(url, applicationPath);
+            }
+
+            return url;
+        }
     }
 }

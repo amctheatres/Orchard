@@ -10,6 +10,10 @@ namespace Orchard.UI.Resources {
             return Resource.ResolveUrl(baseSettings == null ? Settings : baseSettings.Combine(Settings), appPath);
         }
 
+        public string GetResourceFallbackUrl(RequireSettings baseSettings, string appPath) {
+            return Resource.ResolveFallbackUrl(baseSettings, appPath);
+        }
+
         public TagBuilder GetTagBuilder(RequireSettings baseSettings, string appPath) {
             var tagBuilder = new TagBuilder(Resource.TagName);
             tagBuilder.MergeAttributes(Resource.TagBuilder.Attributes);

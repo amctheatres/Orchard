@@ -1,18 +1,24 @@
 using Orchard.UI.Resources;
 
-namespace Orchard.jQuery {
-    public class ResourceManifest : IResourceManifestProvider {
-        public void BuildManifests(ResourceManifestBuilder builder) {
+namespace Orchard.jQuery
+{
+    public class ResourceManifest : IResourceManifestProvider
+    {
+        public void BuildManifests(ResourceManifestBuilder builder)
+        {
             var manifest = builder.Add();
             manifest.DefineScript("jQuery").SetUrl("jquery-1.11.1.min.js", "jquery-1.11.1.js").SetVersion("1.11.1")
-                .SetCdn("//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.1.min.js", "//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.1.js", true);
+                .SetCdn("//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.1.min.js", "//ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.1.js", true)
+                .SetCdnFallbackExpression("window.jQuery");
 
             manifest.DefineScript("jQueryMigrate").SetUrl("jquery-migrate-1.2.1.min.js", "jquery-migrate-1.2.1.js").SetVersion("1.2.1")
-                .SetCdn("//ajax.aspnetcdn.com/ajax/jquery.migrate/jquery-migrate-1.2.1.min.js", "//ajax.aspnetcdn.com/ajax/jquery.migrate/jquery-migrate-1.2.1.js", true);
+                .SetCdn("//ajax.aspnetcdn.com/ajax/jquery.migrate/jquery-migrate-1.2.1.min.js", "//ajax.aspnetcdn.com/ajax/jquery.migrate/jquery-migrate-1.2.1.js", true)
+                .SetCdnFallbackExpression("window.jQuery");
 
             // Full jQuery UI bundle
             manifest.DefineScript("jQueryUI").SetUrl("jquery-ui.min.js", "jquery-ui.js").SetVersion("1.9.2").SetDependencies("jQuery")
-                .SetCdn("//ajax.aspnetcdn.com/ajax/jquery.ui/1.9.2/jquery-ui.min.js", "//ajax.aspnetcdn.com/ajax/jquery.ui/1.9.2/jquery-ui.js", true);
+                .SetCdn("//ajax.aspnetcdn.com/ajax/jquery.ui/1.9.2/jquery-ui.min.js", "//ajax.aspnetcdn.com/ajax/jquery.ui/1.9.2/jquery-ui.js", true)
+                .SetCdnFallbackExpression("window.jQuery");
 
             // UI Core
             manifest.DefineScript("jQueryUI_Core").SetUrl("jquery.ui.core.min.js", "jquery.ui.core.js").SetVersion("1.9.2").SetDependencies("jQuery");
